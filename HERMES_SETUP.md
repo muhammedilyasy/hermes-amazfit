@@ -63,7 +63,8 @@ internet.
 
 ## When Hermes replies
 
-1. In the **Zepp app**, open the Hermes app's settings (see the README, step 7).
+1. In the **Zepp app**, go to **Device → General → Developer settings → Add mini app** and open
+   **Hermes** → **Settings** (README, step 6).
 2. Paste the **Server URL** and **API key**, then tap **Test connection**.
    It should say **Connected · Hermes x.y.z**.
 3. Open Hermes on your watch. The header shows a green **Online**.

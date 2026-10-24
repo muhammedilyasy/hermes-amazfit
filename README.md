@@ -62,8 +62,8 @@ zeus preview
 **5. Scan the QR code from the Zepp app:** Profile → Developer Mode → **Scan**, and scan the code in
 your terminal. The app installs on your watch.
 
-**6. Open the app's settings:** in the Zepp app, go to the installed apps in Developer Mode (or
-Profile → your watch → App list), open **Hermes**, and open its **Settings**.
+**6. Open the app's settings:** in the Zepp app, go to **Device → General → Developer settings →
+Add mini app**, then open **Hermes** and its **Settings**.
 
 **7. Enter your Hermes API endpoint** in **Server URL**, e.g. `https://hermes.example.com`.
 
