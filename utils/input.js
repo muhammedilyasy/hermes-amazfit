@@ -2,6 +2,10 @@
 import { createKeyboard, deleteKeyboard, inputType } from '@zos/ui'
 import { showToast } from '@zos/interaction'
 
+// The system keyboard needs API_LEVEL 4.0. Older watches (Zepp OS 3.x) don't have it, so
+// pages hide voice / typing there and offer quick commands only.
+export const canType = typeof createKeyboard === 'function'
+
 // onText(text) is called with the trimmed result; nothing happens on cancel or empty input.
 export function ask(mode, onText, initial) {
   try {

@@ -6,7 +6,7 @@
 // The side service starts the run and returns at once; we poll every 2 s, so long
 // agent turns never hit the BLE request timeout.
 import { prop } from '@zos/ui'
-import { replace } from '@zos/router'
+import { replace, back } from '@zos/router'
 import { scrollTo } from '@zos/page'
 import { setPageBrightTime, pauseDropWristScreenOff, resetDropWristScreenOff } from '@zos/display'
 import { showToast } from '@zos/interaction'
@@ -14,7 +14,7 @@ import { BasePage } from '@zeppos/zml/base-page'
 import * as L from 'zosLoader:./index.[pf].layout.js'
 import { Group, textHeight, hideStatusBar } from '../../components/ui'
 import { COLOR } from '../../utils/theme'
-import { ask, requestId } from '../../utils/input'
+import { ask, canType, requestId } from '../../utils/input'
 import { strong } from '../../utils/haptics'
 import { load, save, KEY } from '../../utils/store'
 
@@ -86,7 +86,7 @@ Page(
     },
 
     build() {
-      hideStatusBar()
+      hideStatusBar(L.HIDE_STATUS_BAR)
       this.head = new Group().header(L.HEADER, 'HERMES')
       setPageBrightTime({ brightTime: AWAKE_MS })
       pauseDropWristScreenOff({ duration: AWAKE_MS })
@@ -311,8 +311,13 @@ Page(
         const c = s.control
         if (c.kind === 'clarify') {
           card('HERMES ASKS', c.text)
-          btn(L.PRIMARY, 'Answer by voice', () => ask('voice', (t) => this.answer(t)))
-          btn(L.SECONDARY, 'Type', () => ask('text', (t) => this.answer(t)), 'tick')
+          if (canType) {
+            btn(L.PRIMARY, 'Answer by voice', () => ask('voice', (t) => this.answer(t)))
+            btn(L.SECONDARY, 'Type', () => ask('text', (t) => this.answer(t)), 'tick')
+          } else {
+            para(L.NOTE, "This watch can't type an answer (needs Zepp OS 4). Answer Hermes elsewhere, or stop the run.")
+            btn(L.DANGER, 'Stop', () => this.stop(), 'tick')
+          }
         } else {
           card('WANTS TO RUN', c.text)
           ui.button(Object.assign({ y }, L.DENY), 'Deny', () => this.answer('deny'))
@@ -327,8 +332,12 @@ Page(
       } else if (s.phase === 'done') {
         label('HERMES')
         para(L.REPLY, s.output)
-        btn(L.PRIMARY, 'Reply by voice', () => ask('voice', followUp))
-        btn(L.SECONDARY, 'Type', () => ask('text', followUp), 'tick')
+        if (canType) {
+          btn(L.PRIMARY, 'Reply by voice', () => ask('voice', followUp))
+          btn(L.SECONDARY, 'Type', () => ask('text', followUp), 'tick')
+        } else {
+          btn(L.SECONDARY, 'Done', () => back(), 'tick')
+        }
       } else {
         label('HERMES')
         para(L.ERROR, s.error)

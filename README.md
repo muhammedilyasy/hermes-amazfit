@@ -5,7 +5,8 @@
 <p align="center">Talk to your <a href="https://hermes-agent.nousresearch.com/">Hermes agent</a> from your wrist.<br>
 Ask by voice, tap a quick command, approve what it wants to run, and read the reply on your watch.</p>
 
-<p align="center"><img src="docs/screens.png" alt="Watch screens: home, working, approval, reply"></p>
+<p align="center"><img src="docs/screens.png" alt="Square watch screens: home, working, approval, reply"></p>
+<p align="center"><img src="docs/screens-round.png" alt="Round watch screens: home, approval, reply"></p>
 
 ## What it does
 
@@ -22,8 +23,7 @@ Watch ──Bluetooth──▶ Zepp app on your phone ──HTTPS──▶ your 
 
 ## What you need
 
-- An **Amazfit Bip 6** (Zepp OS 4.x). Other watches aren't supported yet; the Active 2 (Square) has
-  the same screen and may work, but it's untested.
+- An **Amazfit watch with Zepp OS 3 or newer**, round or square (see [Supported watches](#supported-watches)).
 - The **Zepp app** on your phone, with the watch paired.
 - A **computer** with [Node.js](https://nodejs.org) 18 or newer (only for installing).
 - A free **Zepp developer account**: sign up at [console.zepp.com](https://console.zepp.com).
@@ -54,7 +54,7 @@ npm install
 zeus preview
 ```
 
-**3. Select your watch model** when asked (**Amazfit Bip 6**). A QR code appears in the terminal.
+**3. Select your watch model** when asked (e.g. **Amazfit Bip 6**). A QR code appears in the terminal.
 
 **4. Turn on Developer Mode in the Zepp app:** Profile → Settings → About, then tap the Zepp icon
 **7 times** until a pop-up confirms it.
@@ -76,6 +76,19 @@ It should say **Connected · Hermes x.y.z**.
 voice**, **Type**, or a quick command.
 
 > Keep the Zepp app running in the background on your phone: the watch talks to Hermes through it.
+
+## Supported watches
+
+Works on every Amazfit watch that runs **Zepp OS 3 or newer**, round and square.
+
+| Watch | What you get |
+| --- | --- |
+| **Zepp OS 4+**: Bip 6, Bip Max, Active 2 (round & square), Active 3 Premium, Active Max, Balance 2, Balance 3, Balance Ultra, T-Rex 3, T-Rex 3 Pro, T-Rex Ultra 2, Cheetah 2 Pro, Cheetah 2 Ultra | Everything: voice, keyboard, quick commands, replies |
+| **Zepp OS 3.x**: Active, Active Edge, Balance, Bip 5 Unity, Cheetah, Cheetah Pro, Cheetah Square, Falcon, GTR 4, GTS 4, T-Rex Ultra | Quick commands, live status, Stop, Approve/Deny (no voice or typing: these watches have no system keyboard) |
+| Older: GTR 3 / 3 Pro, GTS 3, GTS 4 mini, Band 7, Bip 5, GTR Mini, T-Rex 2 | Not supported (Zepp OS 1.x / 2.x can't run this app) |
+
+Tested on a real **Bip 6**; the other watches are checked with screen previews, not on the device.
+Update your watch to the latest firmware for the best result.
 
 ## Troubleshooting
 

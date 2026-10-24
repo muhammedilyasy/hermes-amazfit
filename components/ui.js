@@ -87,25 +87,38 @@ export class Group {
     return hit
   }
 
-  // Logo tile + pixel wordmark, and a status dot + label on the right.
-  // style: { logo, wordmark, dot, status }. Returns { setStatus(text, color) }.
+  // Logo tile + pixel wordmark, and a status dot + label.
+  // style: { logo, wordmark, dot, status, center }. With center (round screens) the dot +
+  // label pair is centered in the status box; otherwise the dot sits at dot.center_x.
+  // Returns { setStatus(text, color) }.
   header(style, title) {
     this.image(style.logo)
     this.text(style.wordmark, title)
     const dot = this.add(widget.CIRCLE, Object.assign({}, style.dot, { color: style.status.color, alpha: 0 }))
-    const label = this.text(style.status, '')
+    const label = this.text(Object.assign({}, style.status, style.center ? { align_h: align.LEFT } : {}), '')
     return {
       setStatus(text, color) {
-        dot.setProperty(prop.MORE, Object.assign({}, style.dot, { color, alpha: text ? 255 : 0 }))
-        label.setProperty(prop.MORE, { text, color })
+        const d = Object.assign({}, style.dot)
+        const box = { text, color }
+        if (style.center && text) {
+          const s = style.status
+          const r = style.dot.radius
+          const textW = getTextLayout(text, { text_size: s.text_size, text_width: 0, wrapped: 0 }).width
+          const startX = s.x + Math.floor((s.w - (r * 2 + style.dotGap + textW)) / 2)
+          d.center_x = startX + r
+          Object.assign(box, { x: startX + r * 2 + style.dotGap, w: textW + style.dotGap })
+        }
+        dot.setProperty(prop.MORE, Object.assign(d, { color, alpha: text ? 255 : 0 }))
+        label.setProperty(prop.MORE, box)
       }
     }
   }
 }
 
-// Our own header replaces the system status bar (square screens only).
-export function hideStatusBar() {
-  setStatusBarVisible(false)
+// Our own header replaces the system status bar. Square screens only: round screens have
+// no status bar API, so layouts gate this with HIDE_STATUS_BAR.
+export function hideStatusBar(hide) {
+  if (hide) setStatusBarVisible(false)
 }
 
 // Height of wrapped text in a box of width w (optionally capped at maxRows).

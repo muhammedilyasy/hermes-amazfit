@@ -1,5 +1,6 @@
 // Static checks the Zeus build does not do (both would only fail at runtime on the watch):
-//   1. Every L.NAME a page uses is exported by its square layout file.
+//   1. Every L.NAME a page uses is exported by both its square and round layout files, and the
+//      two files export the same names.
 //   2. Every named import from a relative path is exported by that file.
 // Usage: node --import ./tools/preview/register.mjs tools/check.mjs
 import fs from 'node:fs'
@@ -33,10 +34,19 @@ for (const file of walk(root)) {
   }
   const loader = src.match(/from\s*'zosLoader:(\.\/[^']+)\[pf\]\.layout\.js'/)
   if (loader) {
-    const layout = path.resolve(path.dirname(file), loader[1] + 's.layout.js')
-    const mod = await import(pathToFileURL(layout).href)
-    for (const n of new Set([...src.matchAll(/\bL\.([A-Z_][A-Z0-9_]*)/g)].map((m) => m[1]))) {
-      if (!(n in mod)) report(file, `L.${n} is not exported by ${path.relative(root, layout)}`)
+    // Each shape's layout is loaded with that shape's mocks (px() uses its design width).
+    const used = new Set([...src.matchAll(/\bL\.([A-Z_][A-Z0-9_]*)/g)].map((m) => m[1]))
+    const names = {}
+    for (const shape of ['s', 'r']) {
+      const layout = path.resolve(path.dirname(file), loader[1] + shape + '.layout.js')
+      if (!fs.existsSync(layout)) { report(file, `missing ${path.relative(root, layout)}`); continue }
+      const mod = await import(pathToFileURL(layout).href)
+      names[shape] = new Set(Object.keys(mod))
+      for (const n of used) if (!(n in mod)) report(file, `L.${n} is not exported by ${path.relative(root, layout)}`)
+    }
+    if (names.s && names.r) {
+      for (const n of names.s) if (!names.r.has(n)) report(file, `${n} is in the square layout but not the round one`)
+      for (const n of names.r) if (!names.s.has(n)) report(file, `${n} is in the round layout but not the square one`)
     }
   }
 }

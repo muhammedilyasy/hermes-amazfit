@@ -1,10 +1,10 @@
 // Home on square screens (design 390 x 450).
-import { text_style } from '@zos/ui'
+import { align, text_style } from '@zos/ui'
 import { px } from '@zos/utils'
-import { COLOR, TYPE, SIZE } from '../../utils/theme'
-import { PRIMARY, SECONDARY, CELL } from '../shared.s.layout'
+import { COLOR, SIZE } from '../../utils/theme'
+import { TYPE, PRIMARY, SECONDARY, CELL } from '../shared.s.layout'
 
-export { HEADER, LABEL, BOTTOM_PAD } from '../shared.s.layout'
+export { HEADER, LABEL, BOTTOM_PAD, HIDE_STATUS_BAR } from '../shared.s.layout'
 
 const W = 390
 
@@ -17,7 +17,12 @@ export const SUBTITLE = {
 export const ASK = Object.assign({ y: px(114) }, PRIMARY)
 export const TYPE_BUTTON = Object.assign({ y: px(194) }, SECONDARY)
 
+// The list starts under the buttons, or right under the subtitle on watches without a keyboard.
 export const LIST_TOP = px(270)
+export const LIST_TOP_NO_INPUT = px(114)
 export const ROW = Object.assign({ trail: '›' }, CELL)
 export const ROW_NEW = Object.assign({}, CELL, { trail: '+', textColor: COLOR.muted })
 export const SECTION_GAP = px(10)
+
+// Footnote under the list (e.g. why voice is missing).
+export const NOTE = { x: px(SIZE.side), w: px(W - SIZE.side * 2), text_size: px(TYPE.caption), color: COLOR.faint, align_h: align.LEFT }

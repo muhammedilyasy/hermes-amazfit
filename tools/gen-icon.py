@@ -1,7 +1,7 @@
 """Pixel-art logo: a black starburst ("spark") on a 18 x 18 grid, drawn crisp with
 nearest-neighbour scaling.
-  assets/default.s/icon.png   248 px app icon, white disc
-  assets/default.s/logo.png   44 px white tile with the spark, for the in-app header
+  assets/default.{s,r}/icon.png   248 px app icon, white disc
+  assets/default.{s,r}/logo.png   44 px white tile with the spark, for the in-app header
   setting/logo.js             the same tile as a base64 PNG for the phone Settings App
   tools/icon-512.png          large copy for review
 Usage: python3 tools/gen-icon.py
@@ -15,6 +15,7 @@ from PIL import Image, ImageDraw
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 G = 18  # grid size
 INK = (31, 30, 29, 255)
+SHAPES = ("s", "r")  # asset folders: square and round screens
 
 # Eight rays, two pixels wide, with uneven lengths (in cells from the centre) so the
 # spark feels hand-drawn rather than mechanical.
@@ -75,10 +76,12 @@ def main():
     cell = 9
     icon = draw(cell, bg=(255, 255, 255, 255), disc=True, pad=(248 - G * cell) // 2)
     icon = icon.resize((248, 248), Image.NEAREST)
-    icon.save(os.path.join(ROOT, "assets", "default.s", "icon.png"))
+    for shape in SHAPES:
+        icon.save(os.path.join(ROOT, "assets", "default." + shape, "icon.png"))
     icon.resize((512, 512), Image.NEAREST).save(os.path.join(ROOT, "tools", "icon-512.png"))
     # Header / settings tile: white rounded square, spark inset.
-    tile(2, 4, 10).save(os.path.join(ROOT, "assets", "default.s", "logo.png"))
+    for shape in SHAPES:
+        tile(2, 4, 10).save(os.path.join(ROOT, "assets", "default." + shape, "logo.png"))
     buf = io.BytesIO()
     tile(4, 12, 22).save(buf, format="PNG")
     b64 = base64.b64encode(buf.getvalue()).decode()

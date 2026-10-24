@@ -1,7 +1,10 @@
 # Hermes on Amazfit (Zepp OS Mini Program)
 
 Watch remote for the user's Hermes agent (Nous Research), running on their server.
-Target: Amazfit Bip 6 only (square 390 x 450, 86 px corners, 2 buttons, API_LEVEL 4.2).
+Targets every Zepp OS watch with API_LEVEL >= 3.0 (app.json minVersion 3.0), round (design 480) and
+square (design 390). Developed on a Bip 6 (square 390 x 450, 86 px corners, API 4.2). Voice/keyboard
+(`createKeyboard`, API 4.0) is feature-detected with `canType` (`utils/input.js`); without it the pages
+hide Ask/Type/Reply and offer quick commands only. API 3.0 is the floor because of `LocalStorage`.
 See README.md for setup.
 
 ## Ground rules
@@ -24,8 +27,14 @@ See README.md for setup.
 - Pixel font Silkscreen Bold (OFL, `assets/default.s/fonts/pixel.ttf`, license in `LICENSES/`) only for the
   HERMES wordmark and small uppercase labels. Everything else is the system font, and anything measured
   with `getTextLayout` must use the system font (it can't measure custom fonts).
-- The system status bar is hidden; every page draws the shared header (`page/shared.s.layout.js`: logo,
-  wordmark, status dot + label set per state).
+- Every page has `index.s.layout.js` + `index.r.layout.js` (same export names, enforced by
+  `tools/check.mjs`); shared values in `page/shared.{s,r}.layout.js`. Assets live in both
+  `assets/default.s` and `assets/default.r`.
+- Square: the system status bar is hidden (`HIDE_STATUS_BAR`; `setStatusBarVisible` is square-only) and
+  the shared header shows logo, wordmark and status dot + label at the right. Round: header centered at
+  the top, status line centered under it; keep content inside the circle.
+- Previews: `shots.py` renders every screen on bip6 (square, API 4), bip5unity (square 320, API 3),
+  balance2 (round 480, API 4) and falcon (round 416, API 3).
 
 ## Architecture
 - `app-side/index.js` (phone) is the only thing that talks to Hermes. It uses the **Runs API**

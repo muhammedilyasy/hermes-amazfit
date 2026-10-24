@@ -1,10 +1,10 @@
 // Chat on square screens (design 390 x 450). Content flows top-down from TOP; the page
 // scrolls when a reply is long.
 import { px } from '@zos/utils'
-import { COLOR, TYPE, SIZE } from '../../utils/theme'
-import { PRIMARY, DANGER } from '../shared.s.layout'
+import { COLOR, SIZE } from '../../utils/theme'
+import { TYPE, PRIMARY, DANGER } from '../shared.s.layout'
 
-export { HEADER, LABEL, PRIMARY, SECONDARY, DANGER, BOTTOM_PAD } from '../shared.s.layout'
+export { HEADER, LABEL, PRIMARY, SECONDARY, DANGER, BOTTOM_PAD, HIDE_STATUS_BAR } from '../shared.s.layout'
 
 const W = 390
 

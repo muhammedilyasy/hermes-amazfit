@@ -1,12 +1,17 @@
-// Shared square-screen styles (design 390 x 450). The system status bar is hidden; our
-// header (logo tile, pixel wordmark, status) takes its place. Screen corners: 86 px radius.
+// Shared square-screen styles (design 390 x 450: Bip 6, Active, GTS 4, Cheetah Square; Bip 5
+// Unity and Bip Max scale from it). The system status bar is hidden; our header (logo tile,
+// pixel wordmark, status) takes its place. Screen corners: 86 px radius.
 import { align, text_style } from '@zos/ui'
 import { px } from '@zos/utils'
-import { COLOR, TYPE, SIZE, FONT } from '../utils/theme'
+import { COLOR, TYPE as SIZES, SIZE, FONT } from '../utils/theme'
 
 const W = 390
+export const TYPE = SIZES.square
+export const HIDE_STATUS_BAR = true
 
 export const HEADER = {
+  center: false,
+  dotGap: px(8),
   logo: { x: px(32), y: px(20), w: px(SIZE.logo), h: px(SIZE.logo), src: 'logo.png' },
   wordmark: {
     x: px(88), y: px(20), w: px(140), h: px(SIZE.logo),

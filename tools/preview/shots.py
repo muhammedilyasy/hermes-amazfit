@@ -1,4 +1,5 @@
-"""Render every screen on Bip 6 into design/preview/ (+ _sheet.png contact sheet).
+"""Render every screen on four watches (square/round, with and without a keyboard) into
+design/preview/, plus a contact sheet _sheet.png.
 
 Usage: python3 tools/preview/shots.py [screen ...]
 Needs Node 22+, Pillow, and Noto Sans in /tmp/sw-fonts (sh tools/preview/setup.sh).
@@ -45,17 +46,23 @@ SCREENS = {
 }
 
 
-def shoot(name, full=False):
+# (name, shape, API level). API 3 = Zepp OS 3.x, no system keyboard.
+DEVICES = [("bip6", "s", 4), ("bip5unity", "s", 3), ("balance2", "r", 4), ("falcon", "r", 3)]
+
+
+def shoot(name, device=("bip6", "s", 4), full=False):
     page, params, store, responses, *advance = SCREENS[name]
-    env = dict(os.environ, PV_ADVANCE_MS=str(advance[0] if advance else 0))
+    dev, shape, api = device
+    env = dict(os.environ, PV_ADVANCE_MS=str(advance[0] if advance else 0), PV_DEVICE=dev, PV_SHAPE=shape, PV_API=str(api))
     res = subprocess.run(["node", "--import", "./tools/preview/register.mjs", "tools/preview/run.mjs", page, params, json.dumps(store), json.dumps(responses)],
                          cwd=ROOT, env=env, capture_output=True, text=True)
     if res.returncode != 0:
-        print(f"{name}: FAILED\n{res.stderr[-1500:]}")
+        print(f"{name}/{dev}: FAILED\n{res.stderr[-1500:]}")
         return None
-    data_path = os.path.join(OUT, f".{name}.json")
+    tag = name if dev == "bip6" else f"{name}-{dev}"
+    data_path = os.path.join(OUT, f".{tag}.json")
     open(data_path, "w").write(res.stdout)
-    png = os.path.join(OUT, f"{name}{'-full' if full else ''}.png")
+    png = os.path.join(OUT, f"{tag}{'-full' if full else ''}.png")
     args = [sys.executable, os.path.join(HERE, "render.py"), data_path, png] + (["--full"] if full else [])
     subprocess.run(args, check=True)
     os.remove(data_path)
@@ -63,17 +70,21 @@ def shoot(name, full=False):
 
 
 def main(names):
+    """One row per screen, one column per watch, in _sheet.png."""
     os.makedirs(OUT, exist_ok=True)
-    pngs = [(n, shoot(n)) for n in names]
-    cols, cell = 4, 420
-    rows = (len(pngs) + cols - 1) // cols
-    sheet = Image.new("RGB", (cell * cols + 20, (cell + 50) * rows + 20), (60, 60, 64))
+    cell = 500
+    sheet = Image.new("RGB", (cell * len(DEVICES) + 20, (cell + 40) * len(names) + 40), (60, 60, 64))
     d = ImageDraw.Draw(sheet)
-    for i, (name, p) in enumerate(pngs):
-        x, y = 20 + (i % cols) * cell, 30 + (i // cols) * (cell + 50)
-        d.text((x, y - 18), name, fill=(220, 220, 220))
-        if p:
-            sheet.paste(Image.open(p), (x, y))
+    for c, (dev, shape, api) in enumerate(DEVICES):
+        d.text((20 + c * cell, 6), f"{dev} (API {api})", fill=(230, 230, 230))
+    for r, name in enumerate(names):
+        y = 40 + r * (cell + 40)
+        d.text((20, y - 16), name, fill=(220, 220, 220))
+        for c, device in enumerate(DEVICES):
+            p = shoot(name, device)
+            if p:
+                im = Image.open(p)
+                sheet.paste(im, (20 + c * cell + (cell - im.width) // 2, y + (cell - im.height) // 2))
     sheet.save(os.path.join(OUT, "_sheet.png"))
     for n in ("home", "reply"):
         if n in names:

@@ -3,7 +3,7 @@
 // Resend's own tokens (gray-2/4/9/11/12, Radix green/red/amber 11).
 // The pixel font (Silkscreen, OFL) is only for the wordmark and small section labels,
 // matching the pixel logo; everything else uses the system font.
-// Sizes are design px for the square 390 x 450 screen; layout files wrap them in px().
+// Sizes are design px (square 390 wide, round 480 wide); layout files wrap them in px().
 
 export const COLOR = {
   bg: 0x000000,
@@ -32,11 +32,16 @@ export function pressed(color) {
   return (Math.round(r * k) << 16) | (Math.round(g * k) << 8) | Math.round(b * k)
 }
 
-// Resource path, relative to assets/default.s.
+// Resource path, relative to assets/default.s and assets/default.r.
 export const FONT = { pixel: 'fonts/pixel.ttf' }
 
-export const TYPE = { wordmark: 26, label: 16, button: 28, body: 28, caption: 24 }
+// Per screen shape (design widths: square 390, round 480).
+export const TYPE = {
+  square: { wordmark: 26, label: 16, button: 28, body: 28, caption: 24 },
+  round: { wordmark: 30, label: 18, button: 32, body: 32, caption: 28 }
+}
 
+// Square values; round layouts set their own positions (see page/shared.r.layout.js).
 export const SIZE = {
   top: 80, // content starts below our header (the system status bar is hidden)
   edge: 16, // card margin

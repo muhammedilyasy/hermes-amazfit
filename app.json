@@ -12,19 +12,25 @@
     "vender": "zepp",
     "description": "Talk to your Hermes agent from your wrist"
   },
-  "permissions": ["data:os.device.info", "device:os.local_storage"],
+  "permissions": [
+    "data:os.device.info",
+    "device:os.local_storage"
+  ],
   "runtime": {
     "apiVersion": {
-      "compatible": "4.0",
+      "compatible": "3.0",
       "target": "4.2",
-      "minVersion": "4.0"
+      "minVersion": "3.0"
     }
   },
   "targets": {
     "default": {
       "module": {
         "page": {
-          "pages": ["page/home/index", "page/chat/index"]
+          "pages": [
+            "page/home/index",
+            "page/chat/index"
+          ]
         },
         "app-side": {
           "path": "app-side/index"
@@ -34,6 +40,10 @@
         }
       },
       "platforms": [
+        {
+          "st": "r",
+          "dw": 480
+        },
         {
           "st": "s",
           "dw": 390

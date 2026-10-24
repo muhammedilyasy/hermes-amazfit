@@ -50,7 +50,8 @@ export function getTextLayout(text, o) {
   return { width: o.text_width, height: capped * lh, rows: capped, result: capped < rows ? 1 : 0 }
 }
 export const inputType = { EMOJI: 0, NUM: 1, CHAR: 2, VOICE: 3, JSKB: 4 }
-export function createKeyboard(o) { S.keyboard = o.inputType; return {} }
+// PV_API=3 simulates a Zepp OS 3.x watch, which has no system keyboard.
+export const createKeyboard = process.env.PV_API === '3' ? undefined : function (o) { S.keyboard = o.inputType; return {} }
 export function deleteKeyboard() {}
 export function updateStatusBarTitle(t) { S.statusTitle = t }
 export function setStatusBarVisible(v) { S.statusVisible = v }

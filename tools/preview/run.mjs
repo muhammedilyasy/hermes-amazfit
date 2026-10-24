@@ -1,6 +1,6 @@
 // Run one page with mocked Zepp APIs and print its widgets as JSON.
-// Usage: node --import ./register.mjs run.mjs <page> [paramsJSON] [storeJSON] [responsesJSON]
-// Bip 6 only (square 390 x 450). Timers are inert, so a page shows the state reached after
+// Usage: PV_DEVICE=bip6 PV_API=4 node --import ./register.mjs run.mjs <page> [paramsJSON] [storeJSON] [responsesJSON]
+// Timers are inert, so a page shows the state reached after
 // its first round of (scripted) requests.
 import path from 'node:path'
 import { readFileSync } from 'node:fs'
@@ -9,7 +9,17 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(here, '../..')
 const [page, paramsJson = '', storeJson = '{}', responsesJson = '{}'] = process.argv.slice(2)
-const dev = { shape: 's', width: 390, height: 450, dw: 390 }
+// PV_DEVICE picks the watch. dw is the design width of the matching app.json platform.
+const DEVICES = {
+  bip6: { shape: 's', width: 390, height: 450, dw: 390 },
+  bip5unity: { shape: 's', width: 320, height: 380, dw: 390 },
+  bipmax: { shape: 's', width: 432, height: 514, dw: 390 },
+  balance2: { shape: 'r', width: 480, height: 480, dw: 480 },
+  active2: { shape: 'r', width: 466, height: 466, dw: 480 },
+  falcon: { shape: 'r', width: 416, height: 416, dw: 480 }
+}
+const dev = DEVICES[process.env.PV_DEVICE || 'bip6']
+process.env.PV_SHAPE = dev.shape
 
 globalThis.__PV = Object.assign({}, dev, {
   widgets: [], nav: [], toasts: [],

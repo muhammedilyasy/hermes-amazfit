@@ -1,13 +1,13 @@
 // Home: header with connection status, Ask by voice / Type, quick commands, last reply,
-// new conversation.
+// new conversation. Watches without the system keyboard (API < 4.0) get quick commands only.
 import { prop } from '@zos/ui'
 import { push } from '@zos/router'
 import { showToast } from '@zos/interaction'
 import { BasePage } from '@zeppos/zml/base-page'
 import * as L from 'zosLoader:./index.[pf].layout.js'
-import { Group, hideStatusBar } from '../../components/ui'
+import { Group, hideStatusBar, textHeight } from '../../components/ui'
 import { COLOR } from '../../utils/theme'
-import { ask, requestId } from '../../utils/input'
+import { ask, canType, requestId } from '../../utils/input'
 import { load, save, KEY } from '../../utils/store'
 
 function openChat(params) {
@@ -28,13 +28,15 @@ Page(
     state: { commands: [] },
 
     build() {
-      hideStatusBar()
+      hideStatusBar(L.HIDE_STATUS_BAR)
       const ui = new Group()
       this.head = ui.header(L.HEADER, 'HERMES')
       this.head.setStatus('Checking', COLOR.faint)
       this.subtitle = ui.text(L.SUBTITLE, '')
-      ui.button(L.ASK, 'Ask by voice', () => ask('voice', send))
-      ui.button(L.TYPE_BUTTON, 'Type', () => ask('text', send), 'tick')
+      if (canType) {
+        ui.button(L.ASK, 'Ask by voice', () => ask('voice', send))
+        ui.button(L.TYPE_BUTTON, 'Type', () => ask('text', send), 'tick')
+      }
       this.list = new Group()
       this.renderList()
       this.connect()
@@ -66,7 +68,7 @@ Page(
     renderList() {
       const ui = this.list
       ui.clear()
-      let y = L.LIST_TOP
+      let y = canType ? L.LIST_TOP : L.LIST_TOP_NO_INPUT
       const label = (text) => {
         ui.text(Object.assign({ y }, L.LABEL), text)
         y += L.LABEL.h + L.SECTION_GAP / 2
@@ -86,6 +88,13 @@ Page(
       const last = load(KEY.last, null)
       if (last && last.input) row(L.ROW, lastLabel(last), () => openChat({ resume: true }))
       row(L.ROW_NEW, 'New conversation', () => this.newConversation())
+
+      if (!canType) {
+        const note = 'Voice and typing need Zepp OS 4. Set quick commands in the Zepp app.'
+        const h = textHeight(note, L.NOTE.text_size, L.NOTE.w)
+        ui.text(Object.assign({ y: y + L.SECTION_GAP, h }, L.NOTE), note)
+        y += L.SECTION_GAP + h
+      }
 
       // Spacer so the page scrolls the last row clear of the rounded corners.
       ui.text({ x: 0, y, w: 1, h: L.BOTTOM_PAD }, '')
