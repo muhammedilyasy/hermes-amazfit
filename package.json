@@ -1,0 +1,24 @@
+{
+  "name": "hermes-watch",
+  "version": "1.0.0",
+  "description": "Hermes for Amazfit: talk to your Hermes agent from an Amazfit watch (Zepp OS)",
+  "main": "app.js",
+  "scripts": {
+    "preview": "zeus preview",
+    "build": "zeus build",
+    "check": "node --import ./tools/preview/register.mjs tools/check.mjs",
+    "test": "node --import ./tools/preview/register.mjs tools/test-side.mjs"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@zeppos/device-types": "^3.0.0"
+  },
+  "dependencies": {
+    "@zeppos/zml": "^0.0.38"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/muhammedilyasy/hermes-amazfit.git"
+  }
+}
