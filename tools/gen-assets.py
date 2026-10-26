@@ -6,9 +6,11 @@
 Writes, for both square (s) and round (r) screens:
   assets/default.{s,r}/icon.png        app icon (round photo, or iMessage-style initials)
   assets/default.{s,r}/avatar.png      header avatar
+  assets/default.{s,r}/avatar-large.png  avatar for the empty conversation
   assets/default.{s,r}/tail-in.png     gray bubble tail (incoming, bottom-left)
   assets/default.{s,r}/tail-out.png    blue bubble tail (outgoing, bottom-right)
   assets/default.{s,r}/mic.png         microphone glyph for the voice button
+  assets/default.{s,r}/fade.png        black-to-clear edge under the fixed header
   setting/avatar.js                    avatar as base64 for the phone Settings App
   utils/agent.js                       default agent name
   app.json                             app name shown in the watch's app list
@@ -77,23 +79,42 @@ def initials_face(name, size):
     return g
 
 
-def tail(w, h, color, mirror):
-    """iMessage bubble tail: a small hook that curls out of the bubble's bottom corner.
-    Drawn for the incoming (left) side; mirrored for outgoing."""
+def tail(k, color, mirror):
+    """iMessage bubble tail for a bubble with a 20 px corner radius (scaled by k).
+
+    The tail replaces the bubble's rounded bottom corner on its side: a bubble-colored block,
+    one corner radius tall, from 6 px outside the bubble to one radius inside it (so it fills
+    the corner), with the part outside the bubble cut by a transparent block whose rounded
+    bottom-right corner leaves the curl. Drawn for the incoming (left) side; mirrored for
+    outgoing. The app draws it BEFORE the bubble, at x = bubble.x - 6k, bottom-aligned.
+    Size: (6 + 20)k x 20k."""
+    r, out = 20 * k, 6 * k
+    w, h = round(out + r), round(r)
     W, H = w * SS, h * SS
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-
-    def bez(p0, p1, p2, n=40):
-        return [((1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0],
-                 (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1]) for t in (i / n for i in range(n + 1))]
-
-    pts = [(W, 0), (W, H)]  # right edge sits under the bubble
-    pts += bez((W, H), (W * 0.45, H), (0, H * 0.96))  # bottom edge out to the tip
-    pts += bez((0, H * 0.96), (W * 0.55, H * 0.8), (W * 0.62, 0))  # concave back up into the bubble
-    d.polygon(pts, fill=color)
+    bw = int(out * SS)  # the cut spans the outside part, up to the bubble edge
+    cr = 9 * k * SS     # radius of the cut's bottom-right corner: the curl
+    alpha = Image.new("L", (W, H), 255)
+    cut = Image.new("L", (W, H), 0)
+    d = ImageDraw.Draw(cut)
+    d.rectangle((0, 0, bw, H), fill=255)
+    d.rectangle((bw - cr, H - cr, bw, H), fill=0)           # free the corner square...
+    d.ellipse((bw - 2 * cr, H - 2 * cr, bw, H), fill=255)  # ...then cut its rounded part
+    alpha = Image.composite(Image.new("L", (W, H), 0), alpha, cut)
+    img = Image.new("RGBA", (W, H), color)
+    img.putalpha(alpha)
     img = img.resize((w, h), Image.LANCZOS)
     return img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
+
+
+def fade(width, height):
+    """Black to transparent, top to bottom: the edge under the fixed header."""
+    img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    px = img.load()
+    for y in range(height):
+        a = int(255 * (1 - y / max(1, height - 1)) ** 1.6)
+        for x in range(width):
+            px[x, y] = (0, 0, 0, a)
+    return img
 
 
 def mic(size):
@@ -133,8 +154,10 @@ def main():
         os.makedirs(out, exist_ok=True)
         face(248).save(os.path.join(out, "icon.png"))
         face(round(44 * k)).save(os.path.join(out, "avatar.png"))
-        tail(round(14 * k), round(18 * k), GRAY, False).save(os.path.join(out, "tail-in.png"))
-        tail(round(14 * k), round(18 * k), BLUE, True).save(os.path.join(out, "tail-out.png"))
+        face(round(96 * k)).save(os.path.join(out, "avatar-large.png"))
+        tail(k, GRAY, False).save(os.path.join(out, "tail-in.png"))
+        tail(k, BLUE, True).save(os.path.join(out, "tail-out.png"))
+        fade(round(390 * k), round(24 * k)).save(os.path.join(out, "fade.png"))
         mic(round(30 * k)).save(os.path.join(out, "mic.png"))
 
     buf = io.BytesIO()

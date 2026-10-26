@@ -75,7 +75,8 @@ DEVICES = [("bip6", "s", 4), ("bip5unity", "s", 3), ("balance2", "r", 4), ("falc
 def shoot(name, device=("bip6", "s", 4), full=False):
     page, params, store, responses, *advance = SCREENS[name]
     dev, shape, api = device
-    env = dict(os.environ, PV_ADVANCE_MS=str(advance[0] if advance else 0), PV_DEVICE=dev, PV_SHAPE=shape, PV_API=str(api))
+    env = dict(os.environ, PV_ADVANCE_MS=str(advance[0] if advance else 0), PV_DEVICE=dev, PV_SHAPE=shape, PV_API=str(api),
+               PV_NOSCROLL="1" if full else "0")
     res = subprocess.run(["node", "--import", "./tools/preview/register.mjs", "tools/preview/run.mjs", page, params, json.dumps(store), json.dumps(responses)],
                          cwd=ROOT, env=env, capture_output=True, text=True)
     if res.returncode != 0:

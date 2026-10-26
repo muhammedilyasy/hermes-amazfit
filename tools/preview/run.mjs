@@ -51,6 +51,31 @@ const skew = Number(process.env.PV_ADVANCE_MS || 0)
 if (skew) { const real = Date.now; Date.now = () => real() + skew }
 for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r))
 
+// Resolve VIEW_CONTAINER layers: children are relative to their container and move with its
+// scroll offset (pos_y, negative = scrolled down); deleted containers take their children
+// with them; higher z_index layers draw on top. PV_NOSCROLL=1 ignores pos_y (full-page shots).
 const S = globalThis.__PV
-const out = S.widgets.filter((w) => !w._deleted)
+const byId = {}
+S.widgets.forEach((w) => (byId[w._id] = w))
+const noScroll = process.env.PV_NOSCROLL === '1'
+const out = []
+for (const w of S.widgets) {
+  if (w._deleted || w.type === 'VIEW_CONTAINER') continue
+  const abs = Object.assign({}, w)
+  let p = w._parent !== null ? byId[w._parent] : null
+  let gone = false
+  let z = 0
+  while (p) {
+    if (p._deleted) gone = true
+    const dy = (p.y || 0) + (noScroll ? 0 : p.pos_y || 0)
+    abs.x = (abs.x || 0) + (p.x || 0)
+    if (abs.y !== undefined) abs.y += dy
+    if (abs.center_x !== undefined) abs.center_x += p.x || 0
+    if (abs.center_y !== undefined) abs.center_y += dy
+    z = p.z_index || 0
+    p = p._parent !== null ? byId[p._parent] : null
+  }
+  if (!gone) out.push(Object.assign(abs, { _z: z }))
+}
+out.sort((a, b) => a._z - b._z || a._id - b._id)
 process.stdout.write(JSON.stringify({ device: dev, status: { title: S.statusTitle, visible: S.statusVisible }, widgets: out, nav: S.nav, scrollY: S.scrollY || 0 }))

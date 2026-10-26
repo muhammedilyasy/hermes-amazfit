@@ -1,6 +1,6 @@
 // Building blocks for the Messages-style UI. Positions and sizes come from the page's
-// *.s.layout.js / *.r.layout.js file. Every widget is created through a Group so the page
-// can clear and rebuild the thread.
+// *.s.layout.js / *.r.layout.js file. Every widget is created through a Group, either on the
+// page or inside a VIEW_CONTAINER layer (the scrolling thread, the fixed header).
 import { createWidget, deleteWidget, widget, align, text_style, prop, event, getTextLayout, setStatusBarVisible } from '@zos/ui'
 import { COLOR, pressed } from '../utils/theme'
 import { tick, confirm } from '../utils/haptics'
@@ -20,13 +20,24 @@ export function hideStatusBar(hide) {
   if (hide) setStatusBarVisible(false)
 }
 
+// A VIEW_CONTAINER layer. modal: 0 so a layer on top doesn't block scrolling underneath.
+export function layer(options) {
+  return createWidget(widget.VIEW_CONTAINER, Object.assign({ modal: 0 }, options))
+}
+
+export function removeLayer(container) {
+  if (container) deleteWidget(container)
+}
+
 export class Group {
-  constructor() {
+  // parent: a VIEW_CONTAINER to create the widgets in (its coordinates), or none for the page.
+  constructor(parent) {
+    this.parent = parent || null
     this.items = []
   }
 
   add(type, options) {
-    const w = createWidget(type, options)
+    const w = this.parent ? this.parent.createWidget(type, options) : createWidget(type, options)
     this.items.push(w)
     return w
   }
@@ -159,11 +170,14 @@ export class Group {
     return C.h
   }
 
-  // Avatar, name, status line and clock. Returns { setName, setSub, setTime }.
-  header(H) {
+  // Fixed header: black bar with a fade below it (messages slide under it), avatar, name,
+  // optional status line, clock. width: screen width. Returns { setName, setSub, setTime }.
+  header(H, width) {
+    this.rect({ x: 0, y: 0, w: width, h: H.h, color: COLOR.bg })
+    this.image({ x: 0, y: H.h, w: width, h: H.fadeH, src: 'fade.png' })
     const avatar = this.image(Object.assign({}, H.avatar))
     const name = this.text(H.name, '')
-    const sub = this.text(H.sub, '')
+    const sub = H.sub ? this.text(H.sub, '') : null
     const time = this.text(H.time, '')
     return {
       setName(value) {
@@ -179,7 +193,7 @@ export class Group {
         }
       },
       setSub(value, color) {
-        sub.setProperty(prop.MORE, { text: value, color: color || COLOR.secondary })
+        if (sub) sub.setProperty(prop.MORE, { text: value, color: color || COLOR.secondary })
       },
       setTime(value) {
         time.setProperty(prop.MORE, { text: value })

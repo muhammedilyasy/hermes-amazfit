@@ -2,18 +2,20 @@
 // a typing indicator while it works, Allow / Deny for commands it wants to run, smart
 // replies (your quick commands), and an "iMessage" field + mic at the bottom.
 //
+// Layers: the thread scrolls in a VIEW_CONTAINER (z 0); the header is a fixed VIEW_CONTAINER
+// on top (z 1) with a fade at its bottom edge, so messages slide under it.
+//
 // One run at a time. The side service starts it and returns at once; we poll every 2 s,
 // so long agent turns never hit the BLE request timeout. Thread and the run in progress
 // are kept in LocalStorage, so reopening the app resumes where it left off.
 // Watches without the system keyboard (API < 4.0) get smart replies only.
-import { prop, align } from '@zos/ui'
+import { prop, align, text_style } from '@zos/ui'
 import { getDeviceInfo } from '@zos/device'
-import { scrollTo } from '@zos/page'
 import { setPageBrightTime, pauseDropWristScreenOff, resetDropWristScreenOff } from '@zos/display'
 import { showToast } from '@zos/interaction'
 import { BasePage } from '@zeppos/zml/base-page'
 import * as L from 'zosLoader:./index.[pf].layout.js'
-import { Group, hideStatusBar, textHeight } from '../../components/ui'
+import { Group, layer, removeLayer, hideStatusBar, textHeight } from '../../components/ui'
 import { COLOR } from '../../utils/theme'
 import { ask, canType, requestId } from '../../utils/input'
 import { strong } from '../../utils/haptics'
@@ -28,6 +30,8 @@ const AWAKE_MS = 120000
 const MAX_THREAD = 40
 const STAMP_GAP_MS = 15 * 60 * 1000
 const MAX_SMART_REPLIES = 4
+const CONNECT_RETRY_MS = 2500 // the phone link may not be up yet when the app opens
+const CONNECT_TRIES = 6
 
 let seq = 0
 const newId = () => 'm' + Date.now().toString(36) + (seq++).toString(36)
@@ -45,7 +49,9 @@ Page(
       hideStatusBar(L.HIDE_STATUS_BAR)
       setPageBrightTime({ brightTime: AWAKE_MS })
       pauseDropWristScreenOff({ duration: AWAKE_MS })
-      this.screenH = getDeviceInfo().height
+      const info = getDeviceInfo()
+      this.screenW = info.width
+      this.screenH = info.height
 
       this.thread = load(KEY.thread, [])
       this.run = load(KEY.run, null)
@@ -56,12 +62,14 @@ Page(
       this.slow = false
       this.pollFails = 0
       this.conn = { text: 'Connecting…', color: COLOR.secondary }
+      this.connectTries = 0
 
-      this.head = new Group().header(L.HEADER)
+      this.render() // creates the thread layer first, so the header layer is created on top
+      const headLayer = layer({ x: 0, y: 0, w: this.screenW, h: L.HEADER.h + L.HEADER.fadeH, z_index: 1, scroll_enable: 0 })
+      this.head = new Group(headLayer).header(L.HEADER, this.screenW)
       this.head.setName(this.name)
       this.head.setTime(now())
-      this.ui = new Group()
-      this.render()
+      this.updateSub()
 
       this.clock = setInterval(() => this.head.setTime(now()), 10000)
       this.ticker = setInterval(() => this.tick(), 400)
@@ -79,6 +87,7 @@ Page(
       clearInterval(this.clock)
       clearInterval(this.ticker)
       clearTimeout(this.pollTimer)
+      clearTimeout(this.connectTimer)
       resetDropWristScreenOff()
     },
 
@@ -93,6 +102,7 @@ Page(
     },
 
     connect() {
+      clearTimeout(this.connectTimer)
       this.hermes('CONFIG')
         .then((cfg) => {
           this.commands = cfg.commands || []
@@ -106,8 +116,23 @@ Page(
             .then(() => this.setConn('Online', COLOR.secondary))
             .catch((e) => this.setConn(e.message || 'Offline', COLOR.red))
         })
-        .catch(() => this.setConn('Phone not connected', COLOR.red))
+        .catch(() => {
+          // Usually just the Bluetooth link still starting: keep trying for a while.
+          if (++this.connectTries < CONNECT_TRIES) {
+            this.connectTimer = setTimeout(() => this.connect(), CONNECT_RETRY_MS)
+          } else {
+            this.setConn('Phone not connected', COLOR.red)
+          }
+        })
         .then(() => this.render())
+    },
+
+    // Any successful call proves the phone is there: refresh a stale "not connected".
+    reconnectIfStale() {
+      if (this.conn.text === 'Phone not connected' || this.conn.text === 'Connecting…') {
+        this.connectTries = 0
+        this.connect()
+      }
     },
 
     setConn(text, color) {
@@ -115,9 +140,16 @@ Page(
       this.updateSub()
     },
 
+    // The status line: header on square, first line of the thread on round.
+    status() {
+      if (this.run && !this.control) return { text: 'typing…', color: COLOR.secondary }
+      return this.conn
+    },
+
     updateSub() {
-      if (this.run && !this.control) this.head.setSub('typing…', COLOR.secondary)
-      else this.head.setSub(this.conn.text, this.conn.color)
+      const st = this.status()
+      if (this.head) this.head.setSub(st.text, st.color)
+      if (this.statusW) this.statusW.setProperty(prop.MORE, { text: st.text, color: st.color })
     },
 
     // ---- Thread ----
@@ -164,6 +196,7 @@ Page(
       this.hermes('START', { input: text, requestId: this.run.requestId })
         .then((r) => {
           msg.state = 'sent'
+          this.reconnectIfStale()
           this.run.runId = r.runId
           this.persist()
           this.render()
@@ -289,16 +322,22 @@ Page(
     },
 
     render() {
-      const ui = this.ui
       const B = L.BUBBLE
-      ui.clear()
+      // Rebuild the thread layer from scratch (also resets its scroll position).
+      removeLayer(this.thread$)
+      this.thread$ = layer({ x: 0, y: 0, w: this.screenW, h: this.screenH, z_index: 0, scroll_enable: 1 })
+      const ui = new Group(this.thread$)
       this.typingUI = null
       this.elapsedW = null
-      this.updateSub()
+      this.statusW = null
 
       let y = L.TOP
       let prev = null // previous bubble sender, for spacing and tails
-      let focus = 0 // top of the newest message: never scroll past it (0 keeps the header in view)
+      let focus = 0 // top of the newest message: never scroll past it (0 keeps the top in view)
+      const center = (text, size, color, h) => {
+        ui.text({ x: L.NOTE.x, y, w: L.NOTE.w, h, text_size: size, color, align_h: align.CENTER_H, align_v: align.CENTER_V }, text)
+        y += h
+      }
       const note = (text, color) => {
         const h = textHeight(text, L.NOTE.size, L.NOTE.w)
         ui.text({ x: L.NOTE.x, y, w: L.NOTE.w, h, text_size: L.NOTE.size, color, align_h: align.CENTER_H }, text)
@@ -309,19 +348,39 @@ Page(
         if (prev) y += prev === from ? B.gapSame : B.gapOther
       }
 
-      if (!this.thread.length && !this.run) {
-        y += B.gapOther
-        note(canType ? 'Send a message to ' + this.name + '.' : 'Tap a reply to message ' + this.name + '.', COLOR.secondary)
+      // Round screens: the status line is the first line of the thread.
+      if (L.STATUS_IN_THREAD) {
+        const st = this.status()
+        this.statusW = ui.text({ x: L.NOTE.x, y, w: L.NOTE.w, h: L.STATUS_LINE.h, text_size: L.NOTE.size, color: st.color, align_h: align.CENTER_H, align_v: align.CENTER_V, text_style: text_style.ELLIPSIS }, st.text)
+        y += L.STATUS_LINE.h
       }
 
       const items = this.thread
+      if (!items.length && !this.run) {
+        // A new conversation: the contact, centered, like the top of a new chat. The big
+        // avatar only if it fits above the smart replies and the field without scrolling.
+        const I = L.INTRO
+        const below = Math.min(this.commands.length, L.FRESH_REPLIES) * (L.PILL.h + L.PILL.gap) + (canType ? L.COMPOSER.h : 0) + L.BOTTOM_GAP + L.PILL.gap * 2
+        const full = I.gap + I.avatar + I.gap + I.nameH + I.subH
+        y += I.gap
+        if (y + full + below <= this.screenH) {
+          ui.image({ x: Math.round((this.screenW - I.avatar) / 2), y, w: I.avatar, h: I.avatar, src: 'avatar-large.png' })
+          y += I.avatar + I.gap
+          center(this.name, I.nameSize, COLOR.text, I.nameH)
+        }
+        focus = y // may scroll up to here, so the field below stays in the wide part of the screen
+        center(canType ? 'Send a message to start' : 'Tap a reply to start', I.subSize, COLOR.secondary, I.subH)
+      } else if (items.length) {
+        center('New Conversation', L.LINK.size, COLOR.blue, L.LINK.h)
+        ui.tap({ x: L.NOTE.x, y: y - L.LINK.h, w: L.NOTE.w, h: L.LINK.h }, () => this.newConversation(), { haptic: 'tick' })
+      }
+
       items.forEach((m, i) => {
         focus = y
         const before = items[i - 1]
         if (!before || m.at - before.at > STAMP_GAP_MS) {
           if (before) y += B.gapOther
-          ui.text({ x: L.STAMP.x, y, w: L.STAMP.w, h: L.STAMP.h, text_size: L.STAMP.size, color: L.STAMP.color, align_h: align.CENTER_H, align_v: align.CENTER_V }, stampLabel(m))
-          y += L.STAMP.h
+          center(stampLabel(m), L.STAMP.size, L.STAMP.color, L.STAMP.h)
           prev = null
         }
         if (m.from === 'note') {
@@ -331,21 +390,19 @@ Page(
         const mine = m.from === 'me'
         space(m.from)
         const next = items[i + 1]
-        const last = !next || next.from !== m.from || (next.at - m.at > STAMP_GAP_MS)
+        const last = !next || next.from !== m.from || next.at - m.at > STAMP_GAP_MS
         const box = ui.bubble(B, { y, text: m.text, mine, tail: last || m.state === 'failed' })
         y += box.h
         prev = m.from
 
         const isLastMine = mine && !items.slice(i + 1).some((x) => x.from !== 'note')
         if (mine && m.state === 'failed') {
-          const label = 'Not Delivered · Tap to retry'
-          ui.text({ x: B.left, y, w: B.right - B.left, h: L.META.h, text_size: L.META.size, color: COLOR.red, align_h: align.RIGHT, align_v: align.CENTER_V }, label)
+          ui.text({ x: B.left, y, w: B.right - B.left, h: L.META.h, text_size: L.META.size, color: COLOR.red, align_h: align.RIGHT, align_v: align.CENTER_V }, 'Not Delivered · Tap to retry')
           ui.tap({ x: box.x, y: box.y, w: box.w, h: box.h + L.META.h }, () => this.retry(m.id))
           y += L.META.h
           prev = null
         } else if (isLastMine && (m.state === 'sent' || m.state === 'sending')) {
-          const label = m.state === 'sent' ? 'Delivered' : 'Sending…'
-          ui.text({ x: B.left, y, w: B.right - B.left, h: L.META.h, text_size: L.META.size, color: COLOR.secondary, align_h: align.RIGHT, align_v: align.CENTER_V }, label)
+          ui.text({ x: B.left, y, w: B.right - B.left, h: L.META.h, text_size: L.META.size, color: COLOR.secondary, align_h: align.RIGHT, align_v: align.CENTER_V }, m.state === 'sent' ? 'Delivered' : 'Sending…')
           y += L.META.h
           prev = null
         }
@@ -388,38 +445,46 @@ Page(
         }
       }
 
-      // Smart replies (your quick commands) when nothing is running.
-      y += L.PILL.gap * 3
-      if (!this.run && this.commands.length) {
-        this.commands.slice(0, MAX_SMART_REPLIES).forEach((cmd) => {
+      // Bottom: the message field, pinned to the bottom of the screen when the conversation is
+      // short (like Messages), right after the last message when it's long. Smart replies sit
+      // above the field in a new conversation and below it once there are messages, so the
+      // field always follows the newest message. Watches without a keyboard get replies only.
+      const fresh = !items.length && !this.run
+      const replies = this.run ? [] : this.commands.slice(0, fresh && canType ? L.FRESH_REPLIES : MAX_SMART_REPLIES)
+      const pillRow = L.PILL.h + L.PILL.gap
+      const drawReplies = () =>
+        replies.forEach((cmd) => {
           ui.pill(Object.assign({}, L.PILL, { y, color: COLOR.pill, textColor: COLOR.text }), cmd, () => this.send(cmd))
-          y += L.PILL.h + L.PILL.gap
+          y += pillRow
         })
-        y += L.PILL.gap
-      }
-
-      // Message field + mic, or a hint on watches without a keyboard.
+      let anchor // bottom of what must be visible after scrolling (field, or last reply)
       if (canType) {
+        const before = fresh ? replies.length * pillRow : 0
+        y = Math.max(y + L.PILL.gap * 2, this.screenH - L.BOTTOM_GAP - L.COMPOSER.h - before)
+        if (fresh) drawReplies()
         const answering = this.control && this.control.kind === 'clarify'
         y += ui.composer(L.COMPOSER, y, answering ? 'Answer…' : 'iMessage', () => ask('text', (t) => this.send(t)), () => ask('voice', (t) => this.send(t)))
+        anchor = y
+        if (!fresh && replies.length) {
+          y += L.PILL.gap * 2
+          drawReplies()
+        }
       } else {
-        note('Typing and dictation need Zepp OS 4. Set replies in the Zepp app.', COLOR.tertiary)
+        const hint = 'Typing and dictation need Zepp OS 4. Set replies in the Zepp app.'
+        const hintH = textHeight(hint, L.NOTE.size, L.NOTE.w)
+        y = Math.max(y + L.PILL.gap * 2, this.screenH - L.BOTTOM_GAP - replies.length * pillRow - hintH)
+        drawReplies()
+        ui.text({ x: L.NOTE.x, y, w: L.NOTE.w, h: hintH, text_size: L.NOTE.size, color: COLOR.tertiary, align_h: align.CENTER_H }, hint)
+        y += hintH
+        anchor = y
       }
-      const composerBottom = y
+      const end = y + L.BOTTOM_GAP
+      // Make the layer's content reach `end`, so it can scroll everything into place.
+      ui.text({ x: 0, y: end - 1, w: 1, h: 1 }, '')
 
-      // New conversation link.
-      y += L.PILL.gap
-      ui.text({ x: L.NOTE.x, y, w: L.NOTE.w, h: L.LINK.h, text_size: L.LINK.size, color: COLOR.blue, align_h: align.CENTER_H, align_v: align.CENTER_V }, 'New Conversation')
-      ui.tap({ x: L.NOTE.x, y, w: L.NOTE.w, h: L.LINK.h }, () => this.newConversation(), { haptic: 'tick' })
-      y += L.LINK.h
-
-      // Spacer so the page can scroll the last row clear of the screen edge.
-      ui.text({ x: 0, y, w: 1, h: L.BOTTOM_PAD }, '')
-
-      // Jump to the bottom so the composer is in view, but never scroll the newest message
-      // above FOCUS_Y: on small and round screens the message matters more than the field.
-      const target = Math.min(composerBottom + L.SCROLL_MARGIN - this.screenH, focus - L.FOCUS_Y)
-      scrollTo({ y: target > 0 ? -target : 0 })
+      // Show the bottom of the conversation, but never scroll the newest message under the header.
+      const target = Math.min(anchor + L.BOTTOM_GAP - this.screenH, focus - L.FOCUS_Y)
+      if (target > 0) this.thread$.setProperty(prop.MORE, { pos_y: -target })
     }
   })
 )

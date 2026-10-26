@@ -35,8 +35,21 @@ See README.md for setup.
   `tools/check.mjs`). Images use `auto_scale`, so one asset per shape fits every screen size.
 - Square: the system status bar is hidden (`HIDE_STATUS_BAR`; `setStatusBarVisible` is square-only).
   Round: clock at the top center, avatar + name centered under it; content stays inside the circle.
-- Scrolling: after each render the page scrolls so the composer is in view, but never past the newest
-  message (`FOCUS_Y`).
+- Layers: the thread is a scrolling VIEW_CONTAINER (z 0, rebuilt on every render, scrolled with
+  `setProperty(prop.MORE, { pos_y: -target })`); the header is a fixed VIEW_CONTAINER on top (z 1,
+  scroll_enable 0) with a black-to-clear `fade.png` under it, so messages slide under it (the watchOS
+  blur; Zepp has no real blur). Both use `modal: 0`, or the top layer blocks scrolling underneath.
+  UNVERIFIED on a device: that negative pos_y scrolls down (it matches `scrollTo`). If the chat opens at
+  the top instead of the newest message, flip the sign.
+- Bottom: the iMessage field is pinned to the bottom of the screen when the conversation is short and
+  follows the newest message when it's long. Smart replies sit above it in a new conversation
+  (`FRESH_REPLIES`: 4 square, 2 round) and below it once there are messages. The big intro avatar only
+  shows if everything fits on one screen. Scrolling never puts the newest message under the header
+  (`FOCUS_Y`).
+- Bubble tails (`tail-in/out.png`, (6 + radius) x radius) fill the bubble's corner on their side and are
+  drawn before the bubble; see `tail()` in `tools/gen-assets.py`.
+- The phone link may not be up when the app opens: CONFIG is retried (6 x 2.5 s) before showing
+  "Phone not connected", and any later successful call refreshes a stale status.
 - Previews: `shots.py` renders every scene on bip6 (square, API 4), bip5unity (square 320, API 3),
   balance2 (round 480, API 4) and falcon (round 416, API 3).
 
