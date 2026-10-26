@@ -24,11 +24,15 @@ process.env.PV_SHAPE = dev.shape
 globalThis.__PV = Object.assign({}, dev, {
   widgets: [], nav: [], toasts: [],
   widths: JSON.parse(readFileSync('/tmp/sw-fonts/widths.json', 'utf8')),
-  statusTitle: '', statusVisible: true,
+  statusTitle: '', statusVisible: true, scrollY: 0,
   store: JSON.parse(storeJson),
   responses: JSON.parse(responsesJson),
-  nowMs: Date.now()
+  // Fixed clock: Thursday 2026-10-22, 22:30 local. Date.now() is pinned to match.
+  clock: { hour: 22, minute: 30, weekday: 4 },
+  h24: false,
+  nowMs: 1792708200000
 })
+Date.now = () => globalThis.__PV.nowMs
 globalThis.setInterval = () => 0
 globalThis.setTimeout = () => 0
 globalThis.clearInterval = () => {}
@@ -49,4 +53,4 @@ for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r))
 
 const S = globalThis.__PV
 const out = S.widgets.filter((w) => !w._deleted)
-process.stdout.write(JSON.stringify({ device: dev, status: { title: S.statusTitle, visible: S.statusVisible }, widgets: out, nav: S.nav }))
+process.stdout.write(JSON.stringify({ device: dev, status: { title: S.statusTitle, visible: S.statusVisible }, widgets: out, nav: S.nav, scrollY: S.scrollY || 0 }))

@@ -6,3 +6,4 @@ package-lock.json
 .idea
 .vscode
 design/preview/
+__pycache__/

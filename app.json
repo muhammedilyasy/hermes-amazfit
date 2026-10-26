@@ -10,7 +10,7 @@
     },
     "icon": "icon.png",
     "vender": "zepp",
-    "description": "Talk to your Hermes agent from your wrist"
+    "description": "Message your Hermes agent from your wrist"
   },
   "permissions": [
     "data:os.device.info",
@@ -28,8 +28,7 @@
       "module": {
         "page": {
           "pages": [
-            "page/home/index",
-            "page/chat/index"
+            "page/home/index"
           ]
         },
         "app-side": {

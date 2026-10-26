@@ -4,6 +4,7 @@
 export const KEY = {
   url: 'url', // Hermes API server base URL, e.g. https://hermes.example.com
   key: 'key', // API_SERVER_KEY
+  name: 'name', // agent's display name (overrides utils/agent.js)
   session: 'session', // Hermes session id, so turns continue one conversation
   commands: 'commands', // JSON array of quick-command strings
   testAt: 'testAt', // Settings App -> side service: "test the connection now" (timestamp)

@@ -67,7 +67,7 @@ internet.
    **Hermes** → **Settings** (README, step 6).
 2. Paste the **Server URL** and **API key**, then tap **Test connection**.
    It should say **Connected · Hermes x.y.z**.
-3. Open Hermes on your watch. The header shows a green **Online**.
+3. Open the app on your watch. Under the name it says **Online**.
 
 ## Troubleshooting
 

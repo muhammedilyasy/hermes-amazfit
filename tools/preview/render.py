@@ -96,6 +96,9 @@ def render(data, full):
     W, H, shape = dev["width"], dev["height"], dev["shape"]
     scale = W / dev["dw"]
     widgets = data["widgets"]
+    if not full and data.get("scrollY"):
+        widgets = [dict(w, y=w["y"] + data["scrollY"]) if "y" in w else
+                   (dict(w, center_y=w["center_y"] + data["scrollY"]) if "center_y" in w else w) for w in widgets]
     bottom = max([H] + [int(w.get("y", 0) + w.get("h", 0)) for w in widgets if "y" in w])
     CH = bottom if full else H
     img = Image.new("RGBA", (W * SS, CH * SS), (0, 0, 0, 255))
@@ -118,11 +121,20 @@ def render(data, full):
                       w.get("align_h", "left"), w.get("align_v", "top"), w.get("text_style", "none"), w.get("font"))
         elif t == "IMG":
             im = asset(shape, w["src"], scale)
+            if im is not None and w.get("auto_scale") and w.get("w") and w.get("h"):
+                im = im.resize((int(w["w"] * SS), int(w["h"] * SS)), Image.LANCZOS)
             if im is not None:
                 if "alpha" in w and w["alpha"] < 255:
                     a = im.getchannel("A").point(lambda v: v * max(w["alpha"], 160) // 255)
                     im.putalpha(a)
-                img.alpha_composite(im, (int((w["x"] + w.get("pos_x", 0)) * SS), int((w["y"] + w.get("pos_y", 0)) * SS)))
+                px_, py_ = int((w["x"] + w.get("pos_x", 0)) * SS), int((w["y"] + w.get("pos_y", 0)) * SS)
+                if px_ + im.width <= 0 or py_ + im.height <= 0:
+                    continue  # scrolled fully off the top
+                if px_ < 0 or py_ < 0:  # scrolled partly off the top: crop instead of pasting at < 0
+                    im = im.crop((max(0, -px_), max(0, -py_), im.width, im.height))
+                    px_, py_ = max(0, px_), max(0, py_)
+                if im.width > 0 and im.height > 0 and px_ < img.width and py_ < img.height:
+                    img.alpha_composite(im, (px_, py_))
         elif t == "ARC":
             if w["end_angle"] > w["start_angle"]:
                 d.arc(box, w["start_angle"], w["end_angle"], fill=rgb(w["color"]), width=int(w["line_width"] * SS))

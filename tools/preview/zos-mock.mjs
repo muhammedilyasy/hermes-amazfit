@@ -86,7 +86,7 @@ export function getDeviceInfo() { return { width: S.width, height: S.height, scr
 
 export const SCROLL_MODE_FREE = 'free', SCROLL_MODE_SWIPER = 'swiper', SCROLL_MODE_SWIPER_HORIZONTAL = 'swiperH'
 export function setScrollMode() { return true }
-export function scrollTo() {}
+export function scrollTo(o) { S.scrollY = typeof o === 'number' ? o : (o && o.y) || 0 }
 export function setScrollLock() {}
 export function getScrollTop() { return 0 }
 

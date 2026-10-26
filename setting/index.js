@@ -1,37 +1,37 @@
-// Settings App in the Zepp phone app, styled after resend.com (dark): black page, gray
-// cards with hairline borders, white primary button, small uppercase eyebrows.
+// Settings App in the Zepp phone app, styled like iOS Settings in dark mode: a contact
+// card for the agent, then grouped lists (Contact, Connection, Conversation, Smart Replies).
 // Everything is saved to settingsStorage, where the side service reads it. The page
-// rebuilds whenever settingsStorage changes, so "Test connection" results show up live.
+// rebuilds whenever settingsStorage changes, so "Test Connection" results show up live.
 import { DEFAULT_COMMANDS, KEY, newSessionId } from '../utils/shared'
-import { LOGO } from './logo'
+import { AVATAR } from './avatar'
+import { AGENT } from '../utils/agent'
 
 const C = {
   bg: '#000000',
-  card: '#141517', // gray-1
-  field: '#191b1e', // gray-2
-  border: '#293034', // gray-4
-  text: '#f0f0f0', // gray-12
-  muted: '#a1a4a5', // gray-11
-  faint: '#6e7679', // gray-9
-  green: '#3dd68c',
-  red: '#ff9592',
-  amber: '#ffca16'
+  group: '#1c1c1e',
+  separator: '#38383a',
+  text: '#ffffff',
+  secondary: '#8e8e93',
+  blue: '#0a84ff',
+  green: '#30d158',
+  red: '#ff453a',
+  orange: '#ff9f0a'
 }
-const FONT = "-apple-system, BlinkMacSystemFont, Inter, 'Segoe UI', Roboto, sans-serif"
+const FONT = "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Roboto, sans-serif"
 const MONO = "ui-monospace, 'SF Mono', Menlo, monospace"
 const MASK = '••••••••••••'
 
 const S = {
-  page: { backgroundColor: C.bg, minHeight: '100vh', padding: '28px 20px 48px', color: C.text, fontFamily: FONT, boxSizing: 'border-box' },
-  card: { backgroundColor: C.card, border: '1px solid ' + C.border, borderRadius: '16px', padding: '18px 16px', marginTop: '16px' },
-  eyebrow: { color: C.faint, fontSize: '11px', fontWeight: '600', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '12px' },
-  hint: { color: C.faint, fontSize: '12px', lineHeight: '18px', marginTop: '8px' },
-  label: { color: C.muted, fontSize: '12px', fontWeight: '500' },
-  value: { color: C.text, fontSize: '15px', backgroundColor: C.field, border: '1px solid ' + C.border, borderRadius: '10px', padding: '10px 12px', marginTop: '6px' },
-  primary: { backgroundColor: '#fdfdfd', color: '#000000', borderRadius: '12px', border: 'none', fontSize: '14px', fontWeight: '600', padding: '10px 16px', marginTop: '14px', width: '100%' },
-  secondary: { backgroundColor: C.field, color: C.text, borderRadius: '12px', border: '1px solid ' + C.border, fontSize: '14px', fontWeight: '600', padding: '10px 16px', marginTop: '14px', width: '100%' },
-  ghost: { backgroundColor: 'transparent', color: C.red, borderRadius: '10px', border: '1px solid ' + C.border, fontSize: '12px', fontWeight: '600', padding: '6px 10px', marginLeft: '10px' },
-  divider: { borderTop: '1px solid ' + C.border, margin: '10px 0' }
+  page: { backgroundColor: C.bg, minHeight: '100vh', padding: '24px 16px 48px', color: C.text, fontFamily: FONT, boxSizing: 'border-box' },
+  header: { color: C.secondary, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.02em', margin: '28px 16px 8px' },
+  footer: { color: C.secondary, fontSize: '13px', lineHeight: '18px', margin: '8px 16px 0' },
+  group: { backgroundColor: C.group, borderRadius: '12px', overflow: 'hidden' },
+  row: { padding: '11px 16px', borderTop: '0.5px solid ' + C.separator },
+  firstRow: { padding: '11px 16px' },
+  label: { color: C.secondary, fontSize: '13px' },
+  value: { color: C.text, fontSize: '17px', marginTop: '2px' },
+  action: { color: C.blue, fontSize: '17px', textAlign: 'left', backgroundColor: 'transparent', border: 'none', padding: '0', width: '100%' },
+  remove: { color: C.red, fontSize: '15px', backgroundColor: 'transparent', border: 'none', padding: '0 0 0 12px' }
 }
 
 function readJSON(storage, key, fallback) {
@@ -47,46 +47,50 @@ function ago(at) {
   return s < 60 ? 'just now' : s < 3600 ? Math.round(s / 60) + ' min ago' : new Date(at).toLocaleString()
 }
 
-function card(eyebrow, children) {
-  return View({ style: S.card }, [Text({ style: S.eyebrow }, eyebrow)].concat(children))
-}
-
-function hint(text) {
-  return Text({ paragraph: true, style: S.hint }, text)
+// One grouped list: section header, rows, optional footer.
+function section(title, rows, footer) {
+  const body = rows.filter(Boolean).map((r, i) => View({ style: i === 0 ? S.firstRow : S.row }, [r]))
+  return View({}, [
+    Text({ style: S.header }, title),
+    View({ style: S.group }, body),
+    footer ? Text({ paragraph: true, style: S.footer }, footer) : null
+  ].filter(Boolean))
 }
 
 function field(opts) {
-  return View({ style: { marginTop: '12px' } }, [
-    TextInput({
-      label: opts.label,
-      placeholder: opts.placeholder,
-      value: opts.value,
-      labelStyle: S.label,
-      subStyle: Object.assign({}, S.value, opts.mono ? { fontFamily: MONO } : {}),
-      maxLength: opts.maxLength || 500,
-      onChange: opts.onChange
-    })
-  ])
+  return TextInput({
+    label: opts.label,
+    placeholder: opts.placeholder,
+    value: opts.value,
+    labelStyle: S.label,
+    subStyle: Object.assign({}, S.value, opts.mono ? { fontFamily: MONO, fontSize: '15px' } : {}),
+    maxLength: opts.maxLength || 500,
+    onChange: opts.onChange
+  })
+}
+
+function action(label, onClick, color) {
+  return Button({ label, style: Object.assign({}, S.action, color ? { color } : {}), onClick })
 }
 
 // "● Connected · Hermes 0.22.5 · just now" / error / not tested yet.
 function status(health, configured) {
-  let color = C.faint
+  let color = C.secondary
   let text = configured ? 'Not tested yet' : 'Add your server URL and API key'
   if (health && configured) {
     color = health.ok ? C.green : C.red
-    text = health.ok ? 'Connected' + (health.version ? ' · Hermes ' + health.version : '') : health.error || 'Connection failed'
-    text += ' · ' + ago(health.at)
+    text = (health.ok ? 'Connected' + (health.version ? ' · Hermes ' + health.version : '') : health.error || 'Connection failed') + ' · ' + ago(health.at)
   }
-  return View({ style: { display: 'flex', flexDirection: 'row', alignItems: 'center', backgroundColor: C.field, border: '1px solid ' + C.border, borderRadius: '999px', padding: '6px 12px', marginTop: '14px' } }, [
-    View({ style: { width: '8px', height: '8px', borderRadius: '4px', backgroundColor: color, marginRight: '8px', flexShrink: 0 } }),
-    Text({ style: { color: health && configured ? C.text : C.muted, fontSize: '13px' } }, text)
+  return View({ style: { display: 'flex', flexDirection: 'row', alignItems: 'center' } }, [
+    View({ style: { width: '8px', height: '8px', borderRadius: '4px', backgroundColor: color, marginRight: '10px', flexShrink: 0 } }),
+    Text({ style: { color: health && configured ? C.text : C.secondary, fontSize: '15px' } }, text)
   ])
 }
 
 AppSettingsPage({
   build(props) {
     const storage = props.settingsStorage
+    const name = (storage.getItem(KEY.name) || '').trim() || AGENT.name
     const url = storage.getItem(KEY.url) || ''
     const hasKey = !!storage.getItem(KEY.key)
     const commands = readJSON(storage, KEY.commands, DEFAULT_COMMANDS)
@@ -94,81 +98,76 @@ AppSettingsPage({
     const session = storage.getItem(KEY.session) || ''
     const saveCommands = (list) => storage.setItem(KEY.commands, JSON.stringify(list))
 
-    const header = View({ style: { display: 'flex', flexDirection: 'row', alignItems: 'center' } }, [
-      Image({ src: LOGO, width: 44, height: 44, style: { borderRadius: '10px', marginRight: '12px' } }),
-      View({}, [
-        Text({ style: { color: C.text, fontSize: '22px', fontWeight: '700', letterSpacing: '-0.01em' } }, 'Hermes'),
-        Text({ style: { color: C.muted, fontSize: '13px', marginTop: '2px' } }, 'Your agent, on your wrist')
-      ])
+    // Contact card, like the top of a conversation's details in Messages.
+    const card = View({ style: { display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '8px' } }, [
+      Image({ src: AVATAR, width: 88, height: 88, style: { borderRadius: '44px' } }),
+      Text({ align: 'center', style: { color: C.text, fontSize: '28px', fontWeight: '600', marginTop: '12px' } }, name),
+      Text({ align: 'center', style: { color: C.secondary, fontSize: '15px', marginTop: '2px' } }, 'Hermes agent on your watch')
     ])
 
-    const server = card('Connection', [
+    const contact = section('Contact', [
+      field({ label: 'Name', placeholder: AGENT.name, value: storage.getItem(KEY.name) || '', maxLength: 40, onChange: (v) => storage.setItem(KEY.name, (v || '').trim()) })
+    ], 'Shown at the top of the conversation on your watch. Reopen the app on the watch to update it.')
+
+    const connection = section('Connection', [
+      field({ label: 'Server URL', placeholder: 'https://hermes.example.com', value: url, onChange: (v) => storage.setItem(KEY.url, (v || '').trim()) }),
       field({
-        label: 'Server URL',
-        placeholder: 'https://hermes.example.com',
-        value: url,
-        onChange: (val) => storage.setItem(KEY.url, (val || '').trim())
-      }),
-      field({
-        label: 'API key',
+        label: 'API Key',
         placeholder: 'API_SERVER_KEY',
         value: hasKey ? MASK : '',
         mono: true,
-        onChange: (val) => {
-          const v = (val || '').trim()
-          if (v && v !== MASK) storage.setItem(KEY.key, v)
+        onChange: (v) => {
+          const k = (v || '').trim()
+          if (k && k !== MASK) storage.setItem(KEY.key, k)
         }
       }),
-      hint('The value of API_SERVER_KEY in ~/.hermes/.env. It is stored on this phone only and never sent to the watch.'),
       status(health, !!(url && hasKey)),
-      Button({ label: 'Test connection', style: S.primary, onClick: () => storage.setItem(KEY.testAt, String(Date.now())) })
-    ])
+      action('Test Connection', () => storage.setItem(KEY.testAt, String(Date.now())))
+    ], 'The API_SERVER_KEY from ~/.hermes/.env. It stays on this phone and is never sent to the watch.')
 
-    const conversation = card('Conversation', [
-      Text({ style: S.label }, 'Session'),
-      Text({ style: Object.assign({}, S.value, { fontFamily: MONO, fontSize: '13px', color: session ? C.text : C.faint }) }, session || 'Created with your first message'),
-      Button({ label: 'Start a new conversation', style: S.secondary, onClick: () => storage.setItem(KEY.session, newSessionId()) }),
-      hint('Messages from the watch continue this Hermes session until you start a new one. You can also do it from the watch.')
-    ])
+    const conversation = section('Conversation', [
+      View({}, [
+        Text({ style: S.label }, 'Session'),
+        Text({ style: Object.assign({}, S.value, { fontFamily: MONO, fontSize: '15px', color: session ? C.text : C.secondary }) }, session || 'Created with your first message')
+      ]),
+      action('Start New Conversation', () => storage.setItem(KEY.session, newSessionId()))
+    ], 'Your watch messages continue this Hermes session until you start a new one.')
 
-    const rows = commands.map((cmd, i) =>
+    const replies = section('Smart Replies', commands.map((cmd, i) =>
       View({ style: { display: 'flex', flexDirection: 'row', alignItems: 'center' } }, [
         View({ style: { flex: 1 } }, [
           TextInput({
             label: '',
             value: cmd,
-            subStyle: Object.assign({}, S.value, { marginTop: '8px' }),
+            subStyle: { color: C.text, fontSize: '17px' },
             maxLength: 200,
-            onChange: (val) => {
-              const v = (val || '').trim()
-              if (!v) return
+            onChange: (v) => {
+              const t = (v || '').trim()
+              if (!t) return
               const next = commands.slice()
-              next[i] = v
+              next[i] = t
               saveCommands(next)
             }
           })
         ]),
-        Button({ label: 'Remove', style: S.ghost, onClick: () => saveCommands(commands.filter((_, j) => j !== i)) })
+        Button({ label: 'Remove', style: S.remove, onClick: () => saveCommands(commands.filter((_, j) => j !== i)) })
       ])
-    )
-
-    const quick = card('Quick commands', rows.concat([
+    ).concat([
       commands.length < 8
-        ? field({
-            label: 'Add a command',
-            placeholder: 'e.g. What changed in the repo today?',
+        ? TextInput({
+            label: '',
+            placeholder: 'Add a reply…',
             value: '',
-            onChange: (val) => {
-              const v = (val || '').trim()
-              if (v) saveCommands(commands.concat([v]).slice(0, 8))
+            subStyle: { color: C.blue, fontSize: '17px' },
+            maxLength: 200,
+            onChange: (v) => {
+              const t = (v || '').trim()
+              if (t) saveCommands(commands.concat([t]).slice(0, 8))
             }
           })
-        : hint('That is the maximum of 8.'),
-      hint('One-tap buttons on the watch. Reopen Hermes on the watch to see changes.')
-    ]))
+        : null
+    ]), 'One-tap replies under the conversation on your watch (the first 4 are shown).')
 
-    const footer = Text({ paragraph: true, align: 'center', style: { color: C.faint, fontSize: '11px', marginTop: '24px' } }, 'Hermes for Amazfit · talks to your server through this phone')
-
-    return View({ style: S.page }, [header, server, conversation, quick, footer])
+    return View({ style: S.page }, [card, contact, connection, conversation, replies])
   }
 })

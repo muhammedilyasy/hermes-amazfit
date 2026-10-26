@@ -13,6 +13,7 @@
 // edited in the Settings App (setting/index.js). The key never reaches the watch.
 import { BaseSideService, settingsLib } from '@zeppos/zml/base-side'
 import { DEFAULT_COMMANDS, KEY, MAX_OUTPUT, newSessionId } from '../utils/shared'
+import { AGENT } from '../utils/agent'
 
 function readJSON(key, fallback) {
   try {
@@ -145,6 +146,7 @@ const handlers = {
     return {
       configured: !!(baseUrl() && settingsLib.getItem(KEY.key)),
       host: baseUrl().replace(/^https?:\/\//, '').split('/')[0],
+      name: (settingsLib.getItem(KEY.name) || '').trim() || AGENT.name,
       commands: readJSON(KEY.commands, DEFAULT_COMMANDS).slice(0, 8)
     }
   },

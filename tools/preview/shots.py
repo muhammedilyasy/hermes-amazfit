@@ -17,32 +17,52 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 OUT = os.path.join(ROOT, "design", "preview")
 
-CONFIG = {"configured": True, "host": "hermes.example.com", "commands": ["What needs my attention today?", "Summarize my unread messages", "What are you working on?"]}
-LAST = {"last": json.dumps({"runId": "run_1", "input": "Is the deploy done?", "status": "completed", "output": "Yes, deployed at 14:02."})}
-REPLY = ("The staging deploy finished at 14:02 and all 128 checks passed. Two things need you: "
-         "Maya asked for a review on the billing PR, and the nightly backup on db-2 failed "
-         "with a disk-full error. Want me to clear old snapshots and re-run it?")
-ASK = json.dumps({"input": "Is the deploy done and is anything on fire?", "requestId": "r1"})
+CONFIG = {"configured": True, "host": "hermes.example.com", "name": "Hermes",
+          "commands": ["What needs my attention?", "Summarize my inbox", "Status of my servers"]}
+NOW = 1792708200000  # matches the mock clock (Thu 2026-10-22 22:30)
 
 
-def run_state(status, **extra):
-    r = {"status": status, "done": status in ("completed", "failed", "cancelled", "interrupted"), "output": "", "control": None}
+def msg(i, frm, text, mins_ago, hm, **extra):
+    return dict({"id": f"m{i}", "from": frm, "text": text, "at": NOW - mins_ago * 60000,
+                 "day": "2026-10-22", "wd": "Thu", "hm": hm}, **extra)
+
+
+THREAD = [
+    msg(1, "me", "Is the deploy done?", 42, "9:48 PM", state="sent"),
+    msg(2, "agent", "Yes. Staging deployed at 9:47 PM and all 128 checks passed.", 41, "9:49 PM"),
+    msg(3, "me", "Anything on fire?", 12, "10:18 PM", state="sent"),
+    msg(4, "agent", "The nightly backup on db-2 failed with a disk-full error.", 11, "10:19 PM"),
+    msg(5, "agent", "Want me to clear old snapshots and re-run it?", 11, "10:19 PM"),
+]
+ASKED = THREAD + [msg(6, "me", "Yes, do it", 1, "10:29 PM", state="sent")]
+RUN = {"runId": "run_1", "requestId": "r1", "msgId": "m6", "startedAt": NOW - 12000}
+
+
+def store(thread, run=None):
+    s = {"thread": json.dumps(thread), "agent": json.dumps({"name": "Hermes"})}
+    if run:
+        s["run"] = json.dumps(run)
+    return s
+
+
+def poll(status="running", control=None, **extra):
+    r = {"status": status, "done": status in ("completed", "failed", "cancelled", "interrupted"), "output": "", "control": control}
     r.update(extra)
-    return {"START": {"runId": "run_1"}, "POLL": r}
+    return r
 
 
+OK = dict(CONFIG=CONFIG, HEALTH={"ok": True})
 SCREENS = {
-    "home": ("page/home/index", "", LAST, dict(CONFIG=CONFIG, HEALTH={"ok": True})),
-    "home-setup": ("page/home/index", "", {}, dict(CONFIG={"configured": False, "commands": []})),
-    "home-offline": ("page/home/index", "", {}, dict(CONFIG=CONFIG, HEALTH={"error": "Blocked by Cloudflare (403)"})),
-    "working": ("page/chat/index", ASK, {}, run_state("running")),
-    "approval": ("page/chat/index", ASK, {}, run_state("waiting_for_approval", control={
-        "kind": "approval", "requestId": "p1", "generation": 3, "text": "rm -rf /var/backups/db-2/snapshots/2026-09-*"})),
-    "clarify": ("page/chat/index", ASK, {}, run_state("running", control={
-        "kind": "clarify", "requestId": "p2", "generation": 4, "text": "Which environment: staging or production?"})),
-    "reply": ("page/chat/index", ASK, {}, run_state("completed", output=REPLY)),
-    "slow": ("page/chat/index", ASK, {}, run_state("running"), 5 * 60 * 1000 + 12000),
-    "error": ("page/chat/index", ASK, {}, {"START": {"error": "API key rejected (401)"}}),
+    "empty": ("page/home/index", "", store([]), OK),
+    "thread": ("page/home/index", "", store(THREAD), OK),
+    "typing": ("page/home/index", "", store(ASKED, RUN), dict(OK, POLL=poll())),
+    "approval": ("page/home/index", "", store(ASKED, RUN), dict(OK, POLL=poll("waiting_for_approval", {
+        "kind": "approval", "requestId": "p1", "generation": 3, "text": "rm -rf /var/backups/db-2/snapshots/2026-09-*"}))),
+    "question": ("page/home/index", "", store(ASKED, RUN), dict(OK, POLL=poll("running", {
+        "kind": "clarify", "requestId": "p2", "generation": 4, "text": "Keep the last 7 days of snapshots, or 14?"}))),
+    "failed": ("page/home/index", "", store(THREAD[:4] + [msg(5, "me", "Restart nginx", 1, "10:29 PM", state="failed", error="Blocked by Cloudflare (403)")]), dict(CONFIG=CONFIG, HEALTH={"error": "Blocked by Cloudflare (403)"})),
+    "setup": ("page/home/index", "", store([]), dict(CONFIG={"configured": False, "name": "Hermes", "commands": []})),
+    "slow": ("page/home/index", "", store(ASKED, RUN), dict(OK, POLL=poll()), 5 * 60 * 1000 + 12000),
 }
 
 
@@ -86,7 +106,7 @@ def main(names):
                 im = Image.open(p)
                 sheet.paste(im, (20 + c * cell + (cell - im.width) // 2, y + (cell - im.height) // 2))
     sheet.save(os.path.join(OUT, "_sheet.png"))
-    for n in ("home", "reply"):
+    for n in ("thread", "approval"):
         if n in names:
             shoot(n, full=True)
     print("wrote", os.path.join(OUT, "_sheet.png"))

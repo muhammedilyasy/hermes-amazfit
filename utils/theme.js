@@ -1,57 +1,41 @@
-// Hermes design system, after resend.com (dark): true black, near-white text, gray
-// cards with hairline borders, white primary buttons, generous 16 px corners. Colors are
-// Resend's own tokens (gray-2/4/9/11/12, Radix green/red/amber 11).
-// The pixel font (Silkscreen, OFL) is only for the wordmark and small section labels,
-// matching the pixel logo; everything else uses the system font.
+// Messages design system, after iMessage on Apple Watch: true black, blue outgoing
+// bubbles, gray incoming bubbles, gray "smart reply" pills, a blue mic button.
+// Colors are Apple's dark-mode system colors.
 // Sizes are design px (square 390 wide, round 480 wide); layout files wrap them in px().
 
 export const COLOR = {
   bg: 0x000000,
-  card: 0x191b1e, // gray-2, elevated surface
-  border: 0x293034, // gray-4, hairline
-  text: 0xf0f0f0, // gray-12
-  muted: 0xa1a4a5, // gray-11
-  faint: 0x6e7679, // gray-9
-  primary: 0xfdfdfd, // white button
-  onPrimary: 0x000000,
-  green: 0x3dd68c,
-  red: 0xff9592,
-  amber: 0xffca16
+  text: 0xffffff,
+  secondary: 0x8e8e93, // systemGray
+  tertiary: 0x636366, // systemGray2
+  incoming: 0x262628, // gray bubble
+  outgoing: 0x0a84ff, // iMessage blue
+  pill: 0x262628, // smart replies, secondary buttons
+  field: 0x1c1c1e, // message field
+  fieldBorder: 0x3a3a3c,
+  dot: 0x8e8e93, // typing dots
+  dotHi: 0xd1d1d6,
+  blue: 0x0a84ff,
+  green: 0x30d158,
+  red: 0xff453a,
+  orange: 0xff9f0a
 }
 
-// Pressed state: light fills darken a little, dark fills lighten a little, others darken 28.6%.
+// Pressed state: light fills darken, dark fills lighten a little.
 export function pressed(color) {
   const r = (color >> 16) & 0xff
   const g = (color >> 8) & 0xff
   const b = color & 0xff
   if (Math.max(r, g, b) < 0x40) {
-    const up = (v) => Math.min(255, v + 0x12)
+    const up = (v) => Math.min(255, v + 0x18)
     return (up(r) << 16) | (up(g) << 8) | up(b)
   }
-  const k = Math.min(r, g, b) > 0xc0 ? 0.86 : 0.714
+  const k = 0.75
   return (Math.round(r * k) << 16) | (Math.round(g * k) << 8) | Math.round(b * k)
 }
 
-// Resource path, relative to assets/default.s and assets/default.r.
-export const FONT = { pixel: 'fonts/pixel.ttf' }
-
 // Per screen shape (design widths: square 390, round 480).
 export const TYPE = {
-  square: { wordmark: 26, label: 16, button: 28, body: 28, caption: 24 },
-  round: { wordmark: 30, label: 18, button: 32, body: 32, caption: 28 }
-}
-
-// Square values; round layouts set their own positions (see page/shared.r.layout.js).
-export const SIZE = {
-  top: 80, // content starts below our header (the system status bar is hidden)
-  edge: 16, // card margin
-  side: 24, // text margin
-  radius: 16, // Resend rounded-2xl
-  hairline: 2,
-  button: 72,
-  secondary: 60,
-  row: 68,
-  gap: 8,
-  logo: 44,
-  bottomPad: 110 // keeps the last item clear of the 86 px screen corners
+  square: { name: 26, body: 26, small: 19, time: 28, pill: 24 },
+  round: { name: 30, body: 30, small: 22, time: 30, pill: 28 }
 }
