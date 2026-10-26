@@ -8,6 +8,7 @@ replies, so it checks layout, not runtime behavior.
 """
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -17,7 +18,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 OUT = os.path.join(ROOT, "design", "preview")
 
-CONFIG = {"configured": True, "host": "hermes.example.com", "name": "Hermes",
+NAME = re.search(r"name: '([^']*)'", open(os.path.join(ROOT, "utils", "agent.js")).read()).group(1)
+CONFIG = {"configured": True, "host": "hermes.example.com", "name": NAME,
           "commands": ["What needs my attention?", "Summarize my inbox", "Status of my servers"]}
 NOW = 1792708200000  # matches the mock clock (Thu 2026-10-22 22:30)
 
@@ -39,7 +41,7 @@ RUN = {"runId": "run_1", "requestId": "r1", "msgId": "m6", "startedAt": NOW - 12
 
 
 def store(thread, run=None):
-    s = {"thread": json.dumps(thread), "agent": json.dumps({"name": "Hermes"})}
+    s = {"thread": json.dumps(thread), "agent": json.dumps({"name": NAME})}
     if run:
         s["run"] = json.dumps(run)
     return s
@@ -61,7 +63,7 @@ SCREENS = {
     "question": ("page/home/index", "", store(ASKED, RUN), dict(OK, POLL=poll("running", {
         "kind": "clarify", "requestId": "p2", "generation": 4, "text": "Keep the last 7 days of snapshots, or 14?"}))),
     "failed": ("page/home/index", "", store(THREAD[:4] + [msg(5, "me", "Restart nginx", 1, "10:29 PM", state="failed", error="Blocked by Cloudflare (403)")]), dict(CONFIG=CONFIG, HEALTH={"error": "Blocked by Cloudflare (403)"})),
-    "setup": ("page/home/index", "", store([]), dict(CONFIG={"configured": False, "name": "Hermes", "commands": []})),
+    "setup": ("page/home/index", "", store([]), dict(CONFIG={"configured": False, "name": NAME, "commands": []})),
     "slow": ("page/home/index", "", store(ASKED, RUN), dict(OK, POLL=poll()), 5 * 60 * 1000 + 12000),
 }
 
